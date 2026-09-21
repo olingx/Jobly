@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>jobly — search once, see everything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14171C;
+    --surface: #1B1F27;
+    --text: #EDEDE7;
+    --muted: #8B92A0;
+    --accent: #FFB23F;
+    --border: #2A2F3A;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 2.4rem;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 1rem;
+    margin: 0 0 32px;
+    max-width: 40ch;
+  }
+  form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    padding: 13px 16px;
+    border-radius: 6px;
+    outline: none;
+  }
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+  button {
+    background: var(--accent);
+    color: #14171C;
+    border: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 13px 22px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .status {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    min-height: 1.4em;
+    margin-bottom: 8px;
+  }
+  .total {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    color: var(--text);
+    margin: 0 0 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .total strong { color: var(--accent); }
+  .source-block { margin-bottom: 32px; }
+  .source-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+  }
+  .source-name {
+    font-family: 'Fraunces', serif;
+    font-size: 1.15rem;
+  }
+  .source-count {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+  }
+  .row:hover .row-title { color: var(--accent); }
+  .row-main { min-width: 0; }
+  .row-title {
+    font-weight: 500;
+    font-size: 0.98rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-sub {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+  .row-loc {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 0.95rem;
+    padding: 20px 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .source-block { animation: fade 0.3s ease both; }
+  }
+  @keyframes fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>jobly</h1>
+    <p class="tagline">Search once. See how many exist, and exactly where each one lives.</p>
+
+    <form id="searchForm">
+      <input type="text" id="q" placeholder="e.g. remote frontend developer" autocomplete="off" />
+      <button type="submit" id="btn">Search</button>
+    </form>
+
+    <div class="status" id="status"></div>
+    <div id="results"></div>
+  </div>
+
+<script>
+  const form = document.getElementById('searchForm');
+  const input = document.getElementById('q');
+  const btn = document.getElementById('btn');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q) return;
+
+    btn.disabled = true;
+    statusEl.textContent = 'Searching sources…';
+    resultsEl.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      render(data);
+    } catch (err) {
+      statusEl.textContent = 'Something went wrong. Try again.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function render(data) {
+    statusEl.textContent = '';
+    resultsEl.innerHTML = '';
+
+    const total = document.createElement('p');
+    total.className = 'total';
+    total.innerHTML = '<strong>' + data.total + '</strong> results across ' + data.sources.length + ' sources for "' + escapeHtml(data.query) + '"';
+    resultsEl.appendChild(total);
+
+    data.sources.forEach((src) => {
+      const block = document.createElement('div');
+      block.className = 'source-block';
+
+      const head = document.createElement('div');
+      head.className = 'source-head';
+      head.innerHTML = '<span class="source-name">' + src.source + '</span>' +
+        '<span class="source-count">' + (src.error ? 'unavailable' : src.count + ' found') + '</span>';
+      block.appendChild(head);
+
+      if (src.error) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Could not reach this source right now.';
+        block.appendChild(empty);
+      } else if (src.items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No matches here.';
+        block.appendChild(empty);
+      } else {
+        src.items.forEach((item) => {
+          const row = document.createElement('a');
+          row.className = 'row';
+          row.href = item.url;
+          row.target = '_blank';
+          row.rel = 'noopener noreferrer';
+          row.innerHTML =
+            '<div class="row-main">' +
+              '<div class="row-title">' + escapeHtml(item.title) + '</div>' +
+              '<div class="row-sub">' + escapeHtml(item.company || '') + '</div>' +
+            '</div>' +
+            '<div class="row-loc">' + escapeHtml(item.location || '') + '</div>';
+          block.appendChild(row);
+        });
+      }
+
+      resultsEl.appendChild(block);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
