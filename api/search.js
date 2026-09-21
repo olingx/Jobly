@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   const matches = (text) => {
     const t = (text || "").toLowerCase();
-    return terms.every((term) => t.includes(term));
+    return terms.some((term) => t.includes(term));
   };
 
   const [remoteok, arbeitnow] = await Promise.allSettled([
@@ -79,4 +79,4 @@ async function fetchArbeitnow(matches) {
       url: j.url,
     })),
   };
-                          }
+}
