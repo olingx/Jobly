@@ -80,6 +80,39 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .check input {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+  }
+  .loc-input, #sort {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    border-radius: 5px;
+    outline: none;
+  }
+  .loc-input { width: 150px; }
+  .loc-input:focus, #sort:focus { border-color: var(--accent); }
   .status {
     color: var(--muted);
     font-family: 'IBM Plex Mono', monospace;
@@ -169,6 +202,17 @@
       <button type="submit" id="btn">Search</button>
     </form>
 
+    <div class="filters">
+      <label class="check"><input type="checkbox" id="remoteOnly" /> Remote only</label>
+      <label class="check"><input type="checkbox" id="nonprofitOnly" /> Nonprofit / NGO</label>
+      <input type="text" id="location" class="loc-input" placeholder="Filter by location" />
+      <select id="sort">
+        <option value="relevance">Sort: Relevance</option>
+        <option value="newest">Sort: Newest</option>
+        <option value="salary">Sort: Salary</option>
+      </select>
+    </div>
+
     <div class="status" id="status"></div>
     <div id="results"></div>
   </div>
@@ -189,8 +233,15 @@
     statusEl.textContent = 'Searching sources…';
     resultsEl.innerHTML = '';
 
+    const params = new URLSearchParams({ q });
+    if (document.getElementById('remoteOnly').checked) params.set('remote', 'true');
+    if (document.getElementById('nonprofitOnly').checked) params.set('nonprofit', 'true');
+    const loc = document.getElementById('location').value.trim();
+    if (loc) params.set('location', loc);
+    params.set('sort', document.getElementById('sort').value);
+
     try {
-      const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+      const res = await fetch('/api/search?' + params.toString());
       const data = await res.json();
       render(data);
     } catch (err) {
@@ -241,7 +292,7 @@
               '<div class="row-title">' + escapeHtml(item.title) + '</div>' +
               '<div class="row-sub">' + escapeHtml(item.company || '') + '</div>' +
             '</div>' +
-            '<div class="row-loc">' + escapeHtml(item.location || '') + '</div>';
+            '<div class="row-loc">' + (item.salary ? '$' + Math.round(item.salary/1000) + 'k · ' : '') + escapeHtml(item.location || '') + '</div>';
           block.appendChild(row);
         });
       }
