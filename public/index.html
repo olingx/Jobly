@@ -190,6 +190,57 @@
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  .alert-box {
+    margin-top: 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .alert-box input[type="email"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+    border-radius: 6px;
+    outline: none;
+    flex: 1;
+    min-width: 180px;
+  }
+  .alert-box input:focus { border-color: var(--accent); }
+  .alert-box button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .alert-status {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .footer {
+    max-width: 720px;
+    margin: 40px auto 0;
+    padding: 0 20px 40px;
+    text-align: center;
+  }
+  .footer a {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-bottom: 1px dotted var(--border);
+  }
+  .footer a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -215,6 +266,16 @@
 
     <div class="status" id="status"></div>
     <div id="results"></div>
+
+    <div id="alertBox" class="alert-box" style="display:none;">
+      <input type="email" id="alertEmail" placeholder="you@email.com" />
+      <button type="button" id="alertBtn">Email me new matches</button>
+      <span id="alertStatus" class="alert-status"></span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="#" id="feedbackLink">Have feedback? Tell us</a>
   </div>
 
 <script>
@@ -224,6 +285,8 @@
   const statusEl = document.getElementById('status');
   const resultsEl = document.getElementById('results');
 
+  let lastSearch = null;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const q = input.value.trim();
@@ -232,22 +295,68 @@
     btn.disabled = true;
     statusEl.textContent = 'Searching sources…';
     resultsEl.innerHTML = '';
+    document.getElementById('alertBox').style.display = 'none';
+
+    const remote = document.getElementById('remoteOnly').checked;
+    const nonprofit = document.getElementById('nonprofitOnly').checked;
+    const location = document.getElementById('location').value.trim();
+    const sort = document.getElementById('sort').value;
 
     const params = new URLSearchParams({ q });
-    if (document.getElementById('remoteOnly').checked) params.set('remote', 'true');
-    if (document.getElementById('nonprofitOnly').checked) params.set('nonprofit', 'true');
-    const loc = document.getElementById('location').value.trim();
-    if (loc) params.set('location', loc);
-    params.set('sort', document.getElementById('sort').value);
+    if (remote) params.set('remote', 'true');
+    if (nonprofit) params.set('nonprofit', 'true');
+    if (location) params.set('location', location);
+    params.set('sort', sort);
+
+    lastSearch = { q, remote, nonprofit, location };
 
     try {
       const res = await fetch('/api/search?' + params.toString());
       const data = await res.json();
       render(data);
+      document.getElementById('alertBox').style.display = 'flex';
     } catch (err) {
       statusEl.textContent = 'Something went wrong. Try again.';
     } finally {
       btn.disabled = false;
+    }
+  });
+
+  document.getElementById('alertBtn').addEventListener('click', async () => {
+    const email = document.getElementById('alertEmail').value.trim();
+    const alertStatus = document.getElementById('alertStatus');
+    if (!email || !lastSearch) return;
+
+    alertStatus.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, query: lastSearch.q, remote: lastSearch.remote, nonprofit: lastSearch.nonprofit, location: lastSearch.location }),
+      });
+      if (res.ok) {
+        alertStatus.textContent = "You'll get an email when new matches show up.";
+      } else {
+        alertStatus.textContent = 'Could not save that. Try again.';
+      }
+    } catch {
+      alertStatus.textContent = 'Could not save that. Try again.';
+    }
+  });
+
+  document.getElementById('feedbackLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const message = window.prompt('What should we fix or add?');
+    if (!message || !message.trim()) return;
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      alert('Thanks — got it.');
+    } catch {
+      alert('Could not send that right now.');
     }
   });
 
