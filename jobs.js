@@ -4,7 +4,7 @@ export const NONPROFIT_KEYWORDS = ["nonprofit", "non-profit", "ngo", "charity", 
 
 export async function fetchRemoteOK() {
   const r = await fetch("https://remoteok.com/api", {
-    headers: { "User-Agent": "jobly-app" },
+    headers: { "User-Agent": "yoworkly-app" },
   });
   const data = await r.json();
   const jobs = Array.isArray(data) ? data.slice(1) : []; // first item is a legal notice, not a job
