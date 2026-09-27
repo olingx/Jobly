@@ -1,4 +1,4 @@
-# jobly
+# yoworkly
 
 Search once, see how many listings exist and exactly which sources they came
 from. Now with filters, sorting, saved-search email alerts, and feedback
